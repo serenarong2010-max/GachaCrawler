@@ -324,6 +324,7 @@ input {
   min-height: 38px;
   padding: 6px 8px;
   font-size: 11px;
+  touch-action: manipulation;
 }
 
 .mobile-hud-bar {

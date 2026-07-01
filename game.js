@@ -237,12 +237,6 @@ function triggerMobileAction(action) {
     case "parry":
       parry();
       break;
-    case "eat":
-      eatFood();
-      break;
-    case "drink":
-      drinkWater();
-      break;
   }
 }
 
@@ -1251,7 +1245,10 @@ window.addEventListener("pointermove", handleJoystickPointer);
 window.addEventListener("pointerup", releaseJoystick);
 window.addEventListener("pointercancel", releaseJoystick);
 ui.mobileActionButtons.forEach(button => {
-  button.addEventListener("click", () => triggerMobileAction(button.dataset.mobileAction));
+  button.addEventListener("pointerdown", event => {
+    if (event.type === "pointerdown") event.preventDefault();
+    triggerMobileAction(button.dataset.mobileAction);
+  });
 });
 
 setDeviceMode(deviceMode);
