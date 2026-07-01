@@ -15,10 +15,15 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
+  touch-action: manipulation;
   background:
     radial-gradient(circle at 20% 8%, rgba(98, 126, 79, .22), transparent 30%),
     radial-gradient(circle at 90% 80%, rgba(182, 58, 49, .18), transparent 32%),
@@ -377,8 +382,14 @@ body.mobile-mode .shell {
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
   height: 100dvh;
+  min-height: 100dvh;
   padding: 8px;
   overflow: hidden;
+}
+
+body.mobile-mode {
+  overflow: hidden;
+  height: 100dvh;
 }
 
 body.mobile-mode .game-wrap {
