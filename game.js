@@ -24,6 +24,23 @@ const ui = {
   inventoryBtn: document.getElementById("inventoryBtn"),
   mobileDrawerClose: document.getElementById("mobileDrawerClose"),
   mobileHudBar: document.getElementById("mobileHudBar"),
+  tradePrompt: document.getElementById("tradePrompt"),
+  tradeEnterBtn: document.getElementById("tradeEnterBtn"),
+  tradePanel: document.getElementById("tradePanel"),
+  tradeCloseBtn: document.getElementById("tradeCloseBtn"),
+  tradeCoins: document.getElementById("tradeCoins"),
+  tradeSubtitle: document.getElementById("tradeSubtitle"),
+  weaponGachaInfo: document.getElementById("weaponGachaInfo"),
+  weaponGachaBtn: document.getElementById("weaponGachaBtn"),
+  weaponGachaResult: document.getElementById("weaponGachaResult"),
+  goodieGachaInfo: document.getElementById("goodieGachaInfo"),
+  goodieGachaBtn: document.getElementById("goodieGachaBtn"),
+  goodieGachaResult: document.getElementById("goodieGachaResult"),
+  sellInfo: document.getElementById("sellInfo"),
+  sellExtrasBtn: document.getElementById("sellExtrasBtn"),
+  sellConfirmBtn: document.getElementById("sellConfirmBtn"),
+  sellCancelBtn: document.getElementById("sellCancelBtn"),
+  materialRows: document.getElementById("materialRows"),
   hud: document.querySelector(".hud"),
   genderButtons: [...document.querySelectorAll("[data-gender]")],
   deviceButtons: [...document.querySelectorAll("[data-device]")],
@@ -35,7 +52,9 @@ const ui = {
   water: document.getElementById("water"),
   cores: document.getElementById("cores"),
   gear: document.getElementById("gear"),
+  coins: document.getElementById("coins"),
   pack: document.getElementById("pack"),
+  materials: document.getElementById("materials"),
   allies: document.getElementById("allies"),
   log: document.getElementById("log"),
   mobileControls: document.getElementById("mobileControls"),
@@ -109,8 +128,39 @@ const people = [
   }
 ];
 
+const weaponCatalog = [
+  { name: "Stone dagger", damage: 0, rarity: "common" },
+  { name: "Core knife", damage: 4, rarity: "common" },
+  { name: "Iron fang", damage: 7, rarity: "common" },
+  { name: "Lantern spear", damage: 10, rarity: "rare" },
+  { name: "Oathbreaker edge", damage: 14, rarity: "rare" },
+  { name: "Watchmade glaive", damage: 18, rarity: "rare" },
+  { name: "Sunsteel saber", damage: 22, rarity: "epic" },
+  { name: "Moon cleaver", damage: 26, rarity: "epic" },
+  { name: "Gravemark halberd", damage: 31, rarity: "mythic" },
+  { name: "Riftbreaker", damage: 37, rarity: "mythic" }
+];
+const gearNames = weaponCatalog.map(weapon => weapon.name);
 const lootNames = ["Water skin", "Dry rations", "Rope", "Storage pouch", "Strange potion", "Iron scrap", "Lantern oil", "Silver thread", "Bone hook", "Chalk marks"];
-const gearNames = ["Stone dagger", "Core knife", "Iron fang", "Lantern spear", "Oathbreaker edge", "Watchmade glaive"];
+const materialItems = new Set(["Rope", "Storage pouch", "Iron scrap", "Lantern oil", "Silver thread", "Bone hook", "Chalk marks"]);
+const materialValues = {
+  Rope: 1,
+  "Storage pouch": 2,
+  "Iron scrap": 2,
+  "Lantern oil": 2,
+  "Silver thread": 3,
+  "Bone hook": 3,
+  "Chalk marks": 2
+};
+const goodiePool = [
+  { name: "Watch spring", desc: "+20 room time", apply: game => { game.roomTime += 20; } },
+  { name: "Field rations", desc: "+2 food", apply: game => { game.food += 2; } },
+  { name: "Water flask", desc: "+2 water", apply: game => { game.water += 2; } },
+  { name: "Core cache", desc: "+2 cores", apply: game => { game.cores += 2; } },
+  { name: "First aid kit", desc: "+24 hp", apply: game => { game.player.hp = clamp(game.player.hp + 24, 0, 100); } },
+  { name: "Lucky charm", desc: "+2 coins from each chest", apply: game => { game.coinBonus += 2; } },
+  { name: "Signal flare", desc: "+15 room time and +1 coin bonus", apply: game => { game.roomTime += 15; game.coinBonus += 1; } }
+];
 let gender = "female";
 let deviceMode = "laptop";
 let game;
@@ -123,8 +173,13 @@ function setDeviceMode(mode) {
   });
   document.body.classList.toggle("mobile-mode", deviceMode === "mobile");
   if (game) {
+    if (deviceMode !== "laptop" && game.tradePanelOpen) closeTradePanel();
+    if (deviceMode === "laptop" && game.nextTradingPostDepth === Infinity) {
+      game.nextTradingPostDepth = game.depth + rnd(2, 3);
+    }
     game.mobile = deviceMode === "mobile";
     syncMobileChrome();
+    syncTradeUi();
   }
 }
 
@@ -240,12 +295,242 @@ function triggerMobileAction(action) {
   }
 }
 
+function syncTradeUi() {
+  const tradeEnabled = deviceMode === "laptop" && game && game.roomType === "trade";
+  const nearTradingPost = tradeEnabled && game.state === "play" && isNearTradingPost();
+  const tradeOpen = !!(game && game.tradePanelOpen);
+  ui.tradePrompt.classList.toggle("hidden", !nearTradingPost || tradeOpen);
+  ui.tradePanel.classList.toggle("hidden", !tradeOpen);
+  if (tradeOpen) {
+    renderTradePanel();
+  }
+}
+
+function isNearTradingPost() {
+  return !!(game.tradingPost && dist(game.player, game.tradingPost) < 72);
+}
+
+function openTradePanel() {
+  if (!game || deviceMode !== "laptop" || game.roomType !== "trade" || !isNearTradingPost()) return;
+  game.tradePanelOpen = true;
+  game.tradeSellMode = false;
+  game.tradeSellDraft = {};
+  game.previousState = game.state;
+  game.state = "trade";
+  Object.keys(keys).forEach(key => {
+    keys[key] = false;
+  });
+  syncTradeUi();
+}
+
+function closeTradePanel() {
+  if (!game || !game.tradePanelOpen) return;
+  game.tradePanelOpen = false;
+  game.tradeSellMode = false;
+  game.tradeSellDraft = {};
+  game.state = game.previousState || "play";
+  game.previousState = null;
+  Object.keys(keys).forEach(key => {
+    keys[key] = false;
+  });
+  syncTradeUi();
+}
+
+function renderTradePanel() {
+  ui.tradeCoins.textContent = game.coins;
+  ui.tradeSubtitle.textContent = game.roomType === "trade"
+    ? `Trading post at depth ${game.depth}. Sell materials, then spin for upgrades.`
+    : "Trading posts appear only in dedicated rooms.";
+  ui.weaponGachaInfo.textContent = `Cost ${weaponGachaCost()} coins. Current weapon: ${gearNames[game.gear]}.`;
+  ui.goodieGachaInfo.textContent = `Cost ${goodieGachaCost()} coins. Helpful consumables and passives.`;
+  syncSellSelectionUi();
+  if (game.tradeSellMode) {
+    ui.sellInfo.textContent = summarizeSelectedMaterials();
+    ui.materialRows.innerHTML = renderSellRows();
+  } else {
+    ui.sellInfo.textContent = summarizeSellables();
+    ui.materialRows.innerHTML = renderMaterialRows();
+  }
+  if (!ui.weaponGachaResult.innerHTML) ui.weaponGachaResult.innerHTML = "<li>Higher-tier weapons become more likely as you progress.</li>";
+  if (!ui.goodieGachaResult.innerHTML) ui.goodieGachaResult.innerHTML = "<li>Goodies can heal, restore supplies, or boost coin gains.</li>";
+}
+
+function syncSellSelectionUi() {
+  const selling = !!(game && game.tradeSellMode);
+  ui.sellExtrasBtn.classList.toggle("hidden", selling);
+  ui.sellConfirmBtn.classList.toggle("hidden", !selling);
+  ui.sellCancelBtn.classList.toggle("hidden", !selling);
+}
+
+function weaponGachaCost() {
+  return 6 + game.gear * 2;
+}
+
+function goodieGachaCost() {
+  return 4 + Math.floor(game.depth / 2);
+}
+
+function currentWeapon() {
+  return weaponCatalog[clamp(game.gear, 0, weaponCatalog.length - 1)] || weaponCatalog[0];
+}
+
+function summarizeSellables() {
+  const extras = Object.entries(game.materials).reduce((sum, [name, count]) => {
+    if (!count) return sum;
+    return sum + Math.max(0, count - 1) * (materialValues[name] || 1);
+  }, 0);
+  if (!Object.values(game.materials).some(count => count > 0)) return "No materials yet.";
+  return extras > 0
+    ? `You can sell extras for ${extras} coins, or open the picker to sell any material.`
+    : "You can still open the picker to sell any material, even your last copy.";
+}
+
+function renderMaterialRows() {
+  const entries = Object.entries(game.materials).filter(([, count]) => count > 0);
+  if (!entries.length) return "<div class=\"material-row\"><span>No materials yet.</span></div>";
+  return entries.map(([name, count]) => {
+    const value = materialValues[name] || 1;
+    const extras = Math.max(0, count - 1);
+    return `<div class="material-row"><div><strong>${escapeHtml(name)}</strong><br><small>${count} on hand, ${value} coin${value === 1 ? "" : "s"} each</small></div><small>Extras: ${extras}</small></div>`;
+  }).join("");
+}
+
+function renderSellRows() {
+  const entries = Object.entries(game.materials).filter(([, count]) => count > 0);
+  if (!entries.length) return "<div class=\"material-row\"><span>No materials yet.</span></div>";
+  return entries.map(([name, count]) => {
+    const value = materialValues[name] || 1;
+    const selected = game.tradeSellDraft[name] || 0;
+    return `<div class="material-row material-row--sell">
+      <div>
+        <strong>${escapeHtml(name)}</strong><br>
+        <small>${count} owned, ${value} coin${value === 1 ? "" : "s"} each</small>
+      </div>
+      <div class="material-row-controls">
+        <button type="button" data-sell-adjust="-1" data-material="${escapeHtml(name)}">-</button>
+        <strong>${selected}</strong>
+        <button type="button" data-sell-adjust="1" data-material="${escapeHtml(name)}">+</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function summarizeSelectedMaterials() {
+  const selectedEntries = Object.entries(game.tradeSellDraft || {}).filter(([, count]) => count > 0);
+  const total = selectedEntries.reduce((sum, [name, count]) => sum + count * (materialValues[name] || 1), 0);
+  if (!selectedEntries.length) {
+    return "Select any materials to sell. You can sell your last copy, too.";
+  }
+  const parts = selectedEntries.map(([name, count]) => `${count} ${name}`);
+  return `Selling ${parts.join(", ")} for ${total} coins.`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function beginSellSelection() {
+  if (!game || !game.tradePanelOpen) return;
+  if (!Object.values(game.materials).some(count => count > 0)) {
+    showMessage("No materials to sell.");
+    return;
+  }
+  game.tradeSellMode = true;
+  game.tradeSellDraft = {};
+  renderTradePanel();
+}
+
+function cancelSellSelection() {
+  if (!game || !game.tradeSellMode) return;
+  game.tradeSellMode = false;
+  game.tradeSellDraft = {};
+  renderTradePanel();
+}
+
+function adjustSellSelection(name, delta) {
+  if (!game || !game.tradeSellMode) return;
+  const owned = game.materials[name] || 0;
+  if (owned <= 0) return;
+  const draft = game.tradeSellDraft[name] || 0;
+  const next = clamp(draft + delta, 0, owned);
+  if (next <= 0) delete game.tradeSellDraft[name];
+  else game.tradeSellDraft[name] = next;
+  renderTradePanel();
+}
+
+function confirmSellSelection() {
+  if (!game || !game.tradeSellMode) return;
+  const entries = Object.entries(game.tradeSellDraft).filter(([, count]) => count > 0);
+  if (!entries.length) {
+    showMessage("Pick at least one material to sell.");
+    return;
+  }
+  let gained = 0;
+  for (const [name, count] of entries) {
+    const owned = game.materials[name] || 0;
+    const selling = Math.min(count, owned);
+    if (selling <= 0) continue;
+    gained += selling * (materialValues[name] || 1);
+    game.materials[name] = Math.max(0, owned - selling);
+  }
+  game.coins += gained;
+  game.tradeSellMode = false;
+  game.tradeSellDraft = {};
+  addLog(`Sold selected materials for ${gained} coins.`);
+  showMessage(`You sold materials for ${gained} coins.`);
+  updateUi();
+}
+
+function drawWeaponGacha() {
+  const cost = weaponGachaCost();
+  if (game.coins < cost) {
+    showMessage("Not enough coins for a weapon pull.");
+    return;
+  }
+  game.coins -= cost;
+  const startIndex = Math.min(game.gear + 1, weaponCatalog.length - 1);
+  const pool = weaponCatalog.slice(startIndex);
+  const roll = pool[rnd(0, pool.length - 1)] || weaponCatalog[weaponCatalog.length - 1];
+  game.gear = weaponCatalog.findIndex(weapon => weapon.name === roll.name);
+  addLog(`Trading post weapon pull: ${roll.name}.`);
+  showMessage(`You pulled ${roll.name}.`);
+  ui.weaponGachaResult.innerHTML = `<li>You got <strong>${roll.name}</strong>.</li>`;
+  game.tradeLastDraw = `Weapon: ${roll.name}`;
+  renderTradePanel();
+  updateUi();
+}
+
+function drawGoodieGacha() {
+  const cost = goodieGachaCost();
+  if (game.coins < cost) {
+    showMessage("Not enough coins for a goodie pull.");
+    return;
+  }
+  game.coins -= cost;
+  const roll = goodiePool[rnd(0, goodiePool.length - 1)];
+  roll.apply(game);
+  addLog(`Trading post goodie pull: ${roll.name}.`);
+  showMessage(`You pulled ${roll.name}. ${roll.desc}.`);
+  ui.goodieGachaResult.innerHTML = `<li>You got <strong>${roll.name}</strong> (${roll.desc}).</li>`;
+  game.tradeLastDraw = `Goodie: ${roll.name}`;
+  renderTradePanel();
+  updateUi();
+}
+
 function resetGame() {
   game = {
     state: "title",
     mobile: deviceMode === "mobile",
     mobileDrawerOpen: false,
     previousState: null,
+    tradePanelOpen: false,
+    tradeSellMode: false,
+    tradeSellDraft: {},
     player: { x: 120, y: 120, w: 22, h: 26, vx: 0, vy: 0, hp: 100, speed: 2.45, facing: 1, invuln: 0, jump: 0, parry: 0, skill: 0, attack: 0 },
     heroName: "Ari",
     gender: "female",
@@ -256,8 +541,11 @@ function resetGame() {
     food: 6,
     water: 6,
     cores: 0,
+    coins: 0,
+    coinBonus: 0,
     gear: 0,
     pack: ["Watch", "Small food pack", "Stone dagger"],
+    materials: Object.fromEntries([...materialItems].map(name => [name, 0])),
     allies: [],
     allyDialogues: {},
     allyRequests: {},
@@ -266,6 +554,9 @@ function resetGame() {
     npcs: [],
     walls: [],
     exit: { x: 0, y: 0, w: 42, h: 74 },
+    tradingPost: null,
+    roomType: "normal",
+    nextTradingPostDepth: deviceMode === "laptop" ? rnd(2, 3) : Infinity,
     shake: 0,
     message: "",
     messageTime: 0,
@@ -279,6 +570,7 @@ function resetGame() {
   ui.hud.classList.remove("mobile-open");
   resetMobileInput();
   syncMobileChrome();
+  syncTradeUi();
   makeRoom(true);
   addLog("You wake at the entrance with only a watch, a small pack, and a stone dagger.");
   updateUi();
@@ -291,6 +583,12 @@ function makeRoom(first = false) {
   game.walls = [];
   game.enemies = [];
   game.loot = [];
+  const isTradingRoom = deviceMode === "laptop" && !first && game.depth === game.nextTradingPostDepth;
+  game.roomType = isTradingRoom ? "trade" : "normal";
+  game.tradingPost = isTradingRoom ? { x: canvas.width / 2 - 36, y: canvas.height / 2 - 24, w: 72, h: 48 } : null;
+  game.tradePanelOpen = false;
+  game.tradeSellMode = false;
+  game.tradeSellDraft = {};
   
   // Keep allied NPCs and recreate them for the new room
   const alliedNpcs = [];
@@ -315,7 +613,11 @@ function makeRoom(first = false) {
   game.exit = { x: canvas.width - 80, y: rnd(120, canvas.height - 160), w: 42, h: 74 };
   game.player.x = first ? 90 : 72;
   game.player.y = first ? canvas.height / 2 : game.exit.y;
-  game.enemiesCleared = first ? true : false; // Track if room is cleared
+  game.enemiesCleared = first || isTradingRoom;
+  if (isTradingRoom) {
+    game.nextTradingPostDepth = game.depth + rnd(2, 3);
+    game.loot = [];
+  }
 
   for (let x = 0; x < WORLD_W; x++) {
     game.walls.push({ x: x * TILE, y: 0, w: TILE, h: TILE });
@@ -332,10 +634,10 @@ function makeRoom(first = false) {
     if (Math.abs(wall.x - game.player.x) > 130 && Math.abs(wall.x - game.exit.x) > 120) game.walls.push(wall);
   }
 
-  const enemyCount = first ? 2 : clamp(2 + Math.floor(game.depth / 2), 2, 9);
+  const enemyCount = isTradingRoom ? 0 : (first ? 2 : clamp(2 + Math.floor(game.depth / 2), 2, 9));
   for (let i = 0; i < enemyCount; i++) spawnEnemy();
-  for (let i = 0; i < rnd(2, 4); i++) spawnLoot(Math.random() < .25 ? "chest" : "fallen");
-  if (!first && Math.random() < .62) spawnNpc();
+  for (let i = 0; i < (isTradingRoom ? 1 : rnd(2, 4)); i++) spawnLoot(Math.random() < .25 ? "chest" : "fallen");
+  if (!first && !isTradingRoom && Math.random() < .62) spawnNpc();
   
   // Add allied NPCs back (they wait at entrance until room is cleared)
   for (const alliedNpc of alliedNpcs) {
@@ -343,7 +645,9 @@ function makeRoom(first = false) {
     game.npcs.push(alliedNpc);
   }
   
-  if (game.depth % 5 === 0) addLog(`The watch scratches a warning: room ${game.depth} is an illusion maze.`);
+  if (isTradingRoom) addLog(`Room ${game.depth}: a trading post hums in the shadows.`);
+  else if (game.depth % 5 === 0) addLog(`The watch scratches a warning: room ${game.depth} is an illusion maze.`);
+  syncTradeUi();
   updateUi();
 }
 
@@ -365,7 +669,8 @@ function spawnEnemy() {
 function spawnLoot(kind, x, y) {
   const spot = findOpenSpot(20, 20, 70, x, y);
   const item = lootNames[rnd(0, lootNames.length - 1)];
-  game.loot.push({ x: spot.x, y: spot.y, w: 20, h: 20, item, kind });
+  const coins = kind === "chest" ? rnd(4, 8) + game.coinBonus : 0;
+  game.loot.push({ x: spot.x, y: spot.y, w: 20, h: 20, item, kind, coins });
 }
 
 function spawnNpc() {
@@ -540,9 +845,10 @@ function attack() {
   const p = game.player;
   p.attack = .16;
   const blade = { x: p.x + (p.facing > 0 ? 12 : -34), y: p.y - 8, w: 46, h: 42 };
+  const weapon = currentWeapon();
   for (const enemy of game.enemies) {
     if (rects(blade, enemy)) {
-      enemy.hp -= 17 + game.gear * 7;
+      enemy.hp -= 16 + Math.round(weapon.damage * .9);
       enemy.hit = .25;
     }
   }
@@ -556,8 +862,9 @@ function useSkill() {
   }
   game.cores--;
   game.player.skill = 5;
+  const weapon = currentWeapon();
   for (const enemy of game.enemies) {
-    if (dist(game.player, enemy) < 135) enemy.hp -= 34 + game.gear * 5;
+    if (dist(game.player, enemy) < 135) enemy.hp -= 30 + Math.round(weapon.damage * .6);
   }
   showMessage("You bite a core and exhale blue fire.");
 }
@@ -609,6 +916,11 @@ function drinkWater() {
 function interact() {
   if (game.state !== "play") return;
   const p = game.player;
+
+  if (deviceMode === "laptop" && game.roomType === "trade" && isNearTradingPost()) {
+    openTradePanel();
+    return;
+  }
   
   // Check for loot first
   for (let i = game.loot.length - 1; i >= 0; i--) {
@@ -692,8 +1004,11 @@ function collectLoot(loot) {
   else if (loot.item.includes("ration")) game.food += 2;
   else if (loot.item.includes("potion")) game.player.hp = clamp(game.player.hp + 24, 0, 100);
   else if (loot.kind === "core") game.cores++;
+  else if (materialItems.has(loot.item)) game.materials[loot.item] = (game.materials[loot.item] || 0) + 1;
   else if (!game.pack.includes(loot.item)) game.pack.push(loot.item);
-  addLog(`Found ${loot.item} from ${loot.kind === "chest" ? "a rare chest" : "the fallen"}.`);
+  if (loot.coins) game.coins += loot.coins;
+  const source = loot.kind === "chest" ? "a chest" : "the fallen";
+  addLog(`Found ${loot.item} from ${source}${loot.coins ? ` (+${loot.coins} coins)` : ""}.`);
 }
 
 function chooseNpc(befriend) {
@@ -968,14 +1283,20 @@ function updateUi() {
   ui.food.textContent = game.food;
   ui.water.textContent = game.water;
   ui.cores.textContent = game.cores;
+  ui.coins.textContent = game.coins;
   ui.gear.textContent = gearNames[game.gear];
   ui.pack.innerHTML = game.pack.slice(-8).map(item => `<li>${item}</li>`).join("");
+  const materialEntries = Object.entries(game.materials).filter(([, count]) => count > 0);
+  ui.materials.innerHTML = materialEntries.length
+    ? materialEntries.map(([name, count]) => `<li>${name} x${count}</li>`).join("")
+    : "<li>None yet</li>";
   ui.allies.innerHTML = game.allies.length ? game.allies.map(a => {
     const request = game.allyRequests[a.name];
     const hasRequest = request && request.type;
     return `<li>${a.name}, ${a.role} (${a.trust})${hasRequest ? ' ⚠️' : ''}</li>`;
   }).join("") : "<li>Alone</li>";
   ui.log.innerHTML = game.log.map(entry => `<li>${entry}</li>`).join("");
+  syncTradeUi();
 }
 
 function formatTime(seconds) {
@@ -993,6 +1314,7 @@ function draw() {
   drawFloor();
   game.walls.forEach(drawWall);
   drawExit();
+  if (game.tradingPost) drawTradingPost();
   game.loot.forEach(drawLoot);
   game.npcs.forEach(drawNpc);
   game.enemies.forEach(drawEnemy);
@@ -1073,6 +1395,21 @@ function drawLoot(loot) {
   ctx.fillRect(loot.x + 7, loot.y + 5, 6, 4);
 }
 
+function drawTradingPost() {
+  const p = game.tradingPost;
+  ctx.fillStyle = "#5f4224";
+  ctx.fillRect(p.x, p.y + 12, p.w, p.h - 12);
+  ctx.fillStyle = "#9d6a35";
+  ctx.fillRect(p.x + 6, p.y, p.w - 12, 16);
+  ctx.fillStyle = "#f0c36c";
+  ctx.fillRect(p.x + 16, p.y + 18, 8, 20);
+  ctx.fillRect(p.x + p.w - 24, p.y + 18, 8, 20);
+  ctx.fillStyle = "#302218";
+  ctx.fillRect(p.x + 12, p.y + 28, p.w - 24, 10);
+  ctx.fillStyle = "#d9d1bd";
+  ctx.fillRect(p.x + 26, p.y + 8, 20, 8);
+}
+
 function drawNpc(npc) {
   // Dim appearance while waiting
   if (npc.waiting) {
@@ -1129,6 +1466,10 @@ function drawTextOverlays() {
   ctx.fillStyle = "#f0c36c";
   if (!game.mobile) {
     ctx.fillText("Exit opens when hostile entities are dead", 22, 28);
+    if (game.roomType === "trade" && isNearTradingPost() && !game.tradePanelOpen) {
+      ctx.fillStyle = "#89d7d1";
+      ctx.fillText("Trading Post ready - click Open or press E", 22, 50);
+    }
     // Show ally hints only on the desktop HUD path.
     const nearbyAlly = game.enemiesCleared ? game.allies.find(ally => {
       const allyNpc = game.npcs.find(n => n.name === ally.name);
@@ -1214,13 +1555,30 @@ ui.inventoryBtn.addEventListener("click", () => {
 });
 
 ui.mobileDrawerClose.addEventListener("click", () => setMobileDrawer(false));
+ui.tradeEnterBtn.addEventListener("click", () => openTradePanel());
+ui.tradeCloseBtn.addEventListener("click", () => closeTradePanel());
+ui.weaponGachaBtn.addEventListener("click", () => drawWeaponGacha());
+ui.goodieGachaBtn.addEventListener("click", () => drawGoodieGacha());
+ui.sellExtrasBtn.addEventListener("click", () => beginSellSelection());
+ui.sellCancelBtn.addEventListener("click", () => cancelSellSelection());
+ui.sellConfirmBtn.addEventListener("click", () => confirmSellSelection());
+ui.materialRows.addEventListener("click", event => {
+  const button = event.target.closest("button[data-sell-adjust]");
+  if (!button) return;
+  adjustSellSelection(button.dataset.material, Number(button.dataset.sellAdjust));
+});
 
 window.addEventListener("keydown", event => {
   const key = event.key.toLowerCase();
   if (key === "escape") {
+    if (game && game.tradePanelOpen) {
+      closeTradePanel();
+      return;
+    }
     if (game && game.mobileDrawerOpen) setMobileDrawer(false);
     return;
   }
+  if (!game || (game.state !== "play" && game.state !== "trade")) return;
   if (game.state !== "play") return;
   keys[key] = true;
   if ([" ", "w", "a", "s", "d", "e", "f", "r", "h", "j", "k", "t"].includes(key)) event.preventDefault();

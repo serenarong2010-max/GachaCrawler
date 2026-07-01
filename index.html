@@ -18,6 +18,10 @@
         </div>
         <button id="inventoryBtn" type="button" class="mobile-inventory-btn">Menu</button>
       </div>
+      <div id="tradePrompt" class="trade-prompt hidden" aria-label="Trading post prompt">
+        <span>Trading Post</span>
+        <button id="tradeEnterBtn" type="button">Open</button>
+      </div>
       <div id="choicePanel" class="choice-panel hidden">
         <p id="choiceText"></p>
         <div class="choice-actions">
@@ -52,6 +56,46 @@
         <h1 id="endTitle">The Watch Stops</h1>
         <p id="endText"></p>
         <button id="restartBtn" class="primary">Try again</button>
+      </div>
+      <div id="tradePanel" class="trade-panel hidden" aria-label="Trading post">
+        <div class="trade-panel-shell">
+          <div class="trade-header">
+            <div>
+              <h1>Trading Post</h1>
+              <p id="tradeSubtitle">Trade materials for coins, then spin for weapon upgrades or helpful goods.</p>
+            </div>
+            <div class="trade-coin-pill">Coins <strong id="tradeCoins">0</strong></div>
+          </div>
+
+          <div class="trade-grid">
+            <section class="trade-card">
+              <h2>Weapon Gacha</h2>
+              <p id="weaponGachaInfo"></p>
+              <button id="weaponGachaBtn" class="primary">Pull Weapon</button>
+              <ul id="weaponGachaResult" class="trade-result"></ul>
+            </section>
+
+            <section class="trade-card">
+              <h2>Goodie Gacha</h2>
+              <p id="goodieGachaInfo"></p>
+              <button id="goodieGachaBtn" class="primary">Pull Goodie</button>
+              <ul id="goodieGachaResult" class="trade-result"></ul>
+            </section>
+
+            <section class="trade-card">
+              <h2>Sell Extras</h2>
+              <p id="sellInfo"></p>
+              <div id="materialRows" class="material-rows"></div>
+              <div class="sell-actions">
+                <button id="sellExtrasBtn" class="primary">Choose Materials</button>
+                <button id="sellConfirmBtn" type="button" class="hidden">Sell Selected</button>
+                <button id="sellCancelBtn" type="button" class="hidden">Cancel</button>
+              </div>
+            </section>
+          </div>
+
+          <button id="tradeCloseBtn" type="button" class="trade-close">Leave Trading Post</button>
+        </div>
       </div>
     </section>
 
@@ -92,12 +136,18 @@
         <div><span>Food</span><strong id="food">6</strong></div>
         <div><span>Water</span><strong id="water">6</strong></div>
         <div><span>Cores</span><strong id="cores">0</strong></div>
+        <div><span>Coins</span><strong id="coins">0</strong></div>
         <div><span>Gear</span><strong id="gear">Stone dagger</strong></div>
       </section>
 
       <section>
         <h2>Pack</h2>
         <ul id="pack"></ul>
+      </section>
+
+      <section>
+        <h2>Materials</h2>
+        <ul id="materials"></ul>
       </section>
 
       <section>
