@@ -18,6 +18,13 @@ const ui = {
   betrayBtn: document.getElementById("betrayBtn"),
   heroName: document.getElementById("heroName"),
   hpBar: document.getElementById("hpBar"),
+  timeLeftMobile: document.getElementById("timeLeftMobile"),
+  roomDepthMobile: document.getElementById("roomDepthMobile"),
+  hpMobile: document.getElementById("hpMobile"),
+  inventoryBtn: document.getElementById("inventoryBtn"),
+  mobileDrawerClose: document.getElementById("mobileDrawerClose"),
+  mobileHudBar: document.getElementById("mobileHudBar"),
+  hud: document.querySelector(".hud"),
   genderButtons: [...document.querySelectorAll("[data-gender]")],
   deviceButtons: [...document.querySelectorAll("[data-device]")],
   timeLeft: document.getElementById("timeLeft"),
@@ -117,16 +124,50 @@ function setDeviceMode(mode) {
   document.body.classList.toggle("mobile-mode", deviceMode === "mobile");
   if (game) {
     game.mobile = deviceMode === "mobile";
-    syncMobileControls();
+    syncMobileChrome();
   }
 }
 
-function syncMobileControls() {
-  const activeGame = game && game.state !== "title" && game.state !== "end";
-  ui.mobileControls.classList.toggle("hidden", deviceMode !== "mobile" || !activeGame);
+function syncMobileChrome() {
+  const hasGame = !!game;
+  const drawerOpen = !!(hasGame && game.mobileDrawerOpen);
+  const mobileActive = deviceMode === "mobile" && hasGame && game.state !== "title" && game.state !== "end";
+  const playing = mobileActive && game.state === "play";
+  ui.mobileHudBar.classList.toggle("hidden", !mobileActive);
+  ui.mobileControls.classList.toggle("hidden", !playing || drawerOpen);
+  ui.hud.classList.toggle("mobile-open", drawerOpen);
+  ui.inventoryBtn.textContent = drawerOpen ? "Close" : "Menu";
+  document.body.classList.toggle("mobile-drawer-open", drawerOpen);
   if (deviceMode !== "mobile") {
     resetMobileInput();
   }
+}
+
+function setMobileDrawer(open) {
+  if (!game || deviceMode !== "mobile") return;
+  if (open) {
+    if (game.state !== "play") return;
+    game.previousState = game.state;
+    game.mobileDrawerOpen = true;
+    game.state = "paused";
+    Object.keys(keys).forEach(key => {
+      keys[key] = false;
+    });
+    resetMobileInput();
+    syncMobileChrome();
+    return;
+  }
+  if (!game.mobileDrawerOpen) return;
+  game.mobileDrawerOpen = false;
+  if (game.state === "paused") {
+    game.state = game.previousState || "play";
+  }
+  game.previousState = null;
+  Object.keys(keys).forEach(key => {
+    keys[key] = false;
+  });
+  resetMobileInput();
+  syncMobileChrome();
 }
 
 function resetMobileInput() {
@@ -179,7 +220,7 @@ function releaseJoystick(event) {
 }
 
 function triggerMobileAction(action) {
-  if (!game || game.state === "title" || game.state === "end") return;
+  if (!game || game.state !== "play" || game.mobileDrawerOpen) return;
   switch (action) {
     case "interact":
       interact();
@@ -209,6 +250,8 @@ function resetGame() {
   game = {
     state: "title",
     mobile: deviceMode === "mobile",
+    mobileDrawerOpen: false,
+    previousState: null,
     player: { x: 120, y: 120, w: 22, h: 26, vx: 0, vy: 0, hp: 100, speed: 2.45, facing: 1, invuln: 0, jump: 0, parry: 0, skill: 0, attack: 0 },
     heroName: "Ari",
     gender: "female",
@@ -238,8 +281,10 @@ function resetGame() {
     enemiesCleared: true,
     log: []
   };
+  document.body.classList.remove("mobile-drawer-open");
+  ui.hud.classList.remove("mobile-open");
   resetMobileInput();
-  syncMobileControls();
+  syncMobileChrome();
   makeRoom(true);
   addLog("You wake at the entrance with only a watch, a small pack, and a stone dagger.");
   updateUi();
@@ -919,9 +964,12 @@ function endGame(title, text) {
 
 function updateUi() {
   ui.timeLeft.textContent = formatTime(game.roomTime);
+  ui.timeLeftMobile.textContent = formatTime(game.roomTime);
   ui.darknessBar.style.width = `${clamp(game.roomTime / game.maxRoomTime, 0, 1) * 100}%`;
   ui.depth.textContent = `Depth ${game.depth}`;
+  ui.roomDepthMobile.textContent = `Depth ${game.depth}`;
   ui.hp.textContent = Math.ceil(game.player.hp);
+  ui.hpMobile.textContent = Math.ceil(game.player.hp);
   ui.hpBar.style.width = `${clamp(game.player.hp, 0, 100)}%`;
   ui.food.textContent = game.food;
   ui.water.textContent = game.water;
@@ -1085,8 +1133,8 @@ function drawDarkness() {
 function drawTextOverlays() {
   ctx.font = "16px Courier New";
   ctx.fillStyle = "#f0c36c";
-  ctx.fillText("Exit opens when hostile entities are dead", 22, 28);
   if (!game.mobile) {
+    ctx.fillText("Exit opens when hostile entities are dead", 22, 28);
     // Show ally hints only on the desktop HUD path.
     const nearbyAlly = game.enemiesCleared ? game.allies.find(ally => {
       const allyNpc = game.npcs.find(n => n.name === ally.name);
@@ -1149,7 +1197,7 @@ ui.startBtn.addEventListener("click", () => {
   game.gender = gender;
   game.mobile = deviceMode === "mobile";
   ui.startPanel.classList.add("hidden");
-  syncMobileControls();
+  syncMobileChrome();
   addLog(`${game.heroName} steps past the threshold. The door behind them becomes stone.`);
 });
 
@@ -1166,8 +1214,20 @@ ui.allyCancelBtn.addEventListener("click", () => {
   game.state = "play";
 });
 
+ui.inventoryBtn.addEventListener("click", () => {
+  if (game && game.mobileDrawerOpen) setMobileDrawer(false);
+  else setMobileDrawer(true);
+});
+
+ui.mobileDrawerClose.addEventListener("click", () => setMobileDrawer(false));
+
 window.addEventListener("keydown", event => {
   const key = event.key.toLowerCase();
+  if (key === "escape") {
+    if (game && game.mobileDrawerOpen) setMobileDrawer(false);
+    return;
+  }
+  if (game.state !== "play") return;
   keys[key] = true;
   if ([" ", "w", "a", "s", "d", "e", "f", "r", "h", "j", "k", "t"].includes(key)) event.preventDefault();
   if (key === " " && game.state === "play") game.player.jump = .18;

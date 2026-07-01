@@ -10,6 +10,14 @@
   <main class="shell">
     <section class="game-wrap" aria-label="Watchfall Dungeon game">
       <canvas id="game" width="960" height="640"></canvas>
+      <div id="mobileHudBar" class="mobile-hud-bar hidden" aria-label="Mobile quick status">
+        <div class="mobile-hud-stats">
+          <span>Time <strong id="timeLeftMobile">02:00</strong></span>
+          <span>Depth <strong id="roomDepthMobile">1</strong></span>
+          <span>HP <strong id="hpMobile">100</strong></span>
+        </div>
+        <button id="inventoryBtn" type="button" class="mobile-inventory-btn">Menu</button>
+      </div>
       <div id="mobileControls" class="mobile-controls hidden" aria-label="Mobile controls">
         <div id="joystick" class="joystick" aria-label="Movement joystick">
           <div class="joystick-base"></div>
@@ -63,6 +71,10 @@
     </section>
 
     <aside class="hud">
+      <div class="mobile-drawer-head hidden">
+        <h2>Menu</h2>
+        <button id="mobileDrawerClose" type="button" class="mobile-drawer-close">Resume</button>
+      </div>
       <section>
         <h2>Watch</h2>
         <div class="watch">

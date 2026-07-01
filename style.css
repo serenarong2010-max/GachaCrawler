@@ -268,10 +268,10 @@ input {
 
 .mobile-controls {
   position: absolute;
-  inset: auto 14px 14px 14px;
+  inset: auto 10px 10px 10px;
   display: grid;
-  grid-template-columns: 138px minmax(0, 1fr);
-  gap: 12px;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
   align-items: end;
   z-index: 6;
   pointer-events: none;
@@ -284,8 +284,8 @@ input {
 
 .joystick {
   position: relative;
-  width: 138px;
-  height: 138px;
+  width: 88px;
+  height: 88px;
   touch-action: none;
   user-select: none;
 }
@@ -308,8 +308,8 @@ input {
 .joystick-stick {
   left: 50%;
   top: 50%;
-  width: 54px;
-  height: 54px;
+  width: 34px;
+  height: 34px;
   transform: translate(-50%, -50%);
   border: 2px solid rgba(240, 195, 108, .65);
   background: linear-gradient(180deg, #4a3a2d, #221b16);
@@ -318,14 +318,55 @@ input {
 
 .mobile-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .mobile-actions button {
-  min-height: 52px;
-  padding: 10px 8px;
-  font-size: 14px;
+  min-height: 34px;
+  padding: 6px 6px;
+  font-size: 11px;
+}
+
+.mobile-hud-bar {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(240, 195, 108, .24);
+  background: rgba(12, 13, 17, .86);
+  backdrop-filter: blur(8px);
+}
+
+.mobile-hud-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.mobile-hud-stats strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.mobile-inventory-btn,
+.mobile-drawer-close {
+  min-height: 28px;
+  padding: 6px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.mobile-drawer-head {
+  display: none;
 }
 
 .hidden {
@@ -337,31 +378,16 @@ body.mobile-mode .shell {
 }
 
 body.mobile-mode .game-wrap {
-  height: min(62vh, 560px);
+  height: calc(100vh - 20px);
 }
 
 body.mobile-mode canvas {
   height: 100%;
 }
 
-body.mobile-mode .hud {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  max-height: none;
-  overflow: visible;
-}
-
-body.mobile-mode .hud section:nth-of-type(n + 3) {
-  display: none;
-}
-
-body.mobile-mode .controls,
-body.mobile-mode .choice-panel p + .choice-actions + .choice-actions {
-  gap: 8px;
-}
-
 body.mobile-mode button {
-  min-height: 50px;
-  font-size: 15px;
+  min-height: 34px;
+  font-size: 12px;
 }
 
 body.mobile-mode .start-panel,
@@ -377,12 +403,49 @@ body.mobile-mode .mobile-controls.hidden {
   display: none;
 }
 
+body.mobile-mode .mobile-hud-bar {
+  display: flex;
+}
+
+body.mobile-mode .hud {
+  display: none;
+}
+
+body.mobile-mode .hud.mobile-open {
+  display: grid;
+  position: fixed;
+  inset: 56px 10px 10px;
+  z-index: 20;
+  max-height: none;
+  overflow: auto;
+  padding: 12px;
+  border: 2px solid rgba(240, 195, 108, .35);
+  background: rgba(10, 11, 15, .96);
+  box-shadow: 0 22px 60px rgba(0, 0, 0, .6);
+  gap: 8px;
+}
+
+body.mobile-mode .hud.mobile-open .mobile-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+body.mobile-mode .hud.mobile-open section {
+  padding: 10px;
+}
+
+body.mobile-mode .hud.mobile-open #log {
+  max-height: 120px;
+}
+
 body.mobile-mode .watch {
   align-items: center;
 }
 
 body.mobile-mode #timeLeft {
-  font-size: 40px;
+  font-size: 24px;
 }
 
 body.mobile-mode .health-bar {
@@ -411,31 +474,34 @@ body.mobile-mode .health-bar {
     padding: 8px;
   }
 
-  .hud {
-    grid-template-columns: 1fr;
-  }
-
-  .controls {
-    grid-template-columns: 1fr;
+  .mobile-hud-bar {
+    left: 8px;
+    right: 8px;
+    top: 8px;
+    padding: 7px 8px;
   }
 
   .mobile-controls {
     inset: auto 8px 8px 8px;
-    grid-template-columns: 112px minmax(0, 1fr);
-    gap: 8px;
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 6px;
   }
 
   .joystick {
-    width: 112px;
-    height: 112px;
+    width: 80px;
+    height: 80px;
   }
 
   .joystick-stick {
-    width: 44px;
-    height: 44px;
+    width: 30px;
+    height: 30px;
   }
 
   .mobile-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.mobile-mode .hud.mobile-open {
+    inset: 48px 8px 8px;
   }
 }
